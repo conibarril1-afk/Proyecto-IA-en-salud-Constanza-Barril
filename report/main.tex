@@ -1,37 +1,601 @@
-\documentclass[12pt]{article}
+\documentclass[10pt,twocolumn]{article}
+
+% --------------------------------------------------
+% PAQUETES
+% --------------------------------------------------
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[spanish]{babel}
-\usepackage{geometry}
-\geometry{margin=2.5cm}
 \usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{geometry}
 \usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric}
+% --------------------------------------------------
+% FORMATO
+% --------------------------------------------------
+\geometry{
+    letterpaper,
+    left=1.7cm,
+    right=1.7cm,
+    top=2cm,
+    bottom=2cm,
+    columnsep=0.7cm
+}
 
-\title{Analisis de actividad basal/pre-peak en senales de fluorescencia celular}
-\author{Proyecto IA en salud}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+% --------------------------------------------------
+% DATOS DEL INFORME
+% --------------------------------------------------
+\title{\textbf{Análisis de actividad basal/pre-peak en señales de fluorescencia celular mediante inteligencia artificial no supervisada}}
+
+\author{
+Constanza Barril\\
+Carrera de Ingeniería Civil Biomédica\\
+Curso de Inteligencia Artificial en Salud\\
+Universidad
+}
+
 \date{\today}
 
+% --------------------------------------------------
+% DOCUMENTO
+% --------------------------------------------------
 \begin{document}
 
+\twocolumn[
 \maketitle
 
 \begin{abstract}
-Este documento resume la metodologia y resultados del proyecto.
+El análisis de señales de fluorescencia celular suele centrarse en la respuesta principal o peak máximo de la señal. Sin embargo, la actividad basal previa a dicho peak puede contener fluctuaciones o microeventos que se pierden cuando esta etapa se promedia o se considera únicamente como ruido. En este proyecto se desarrolló un flujo computacional basado en Fiji/ImageJ, Python e inteligencia artificial no supervisada para analizar la actividad basal/pre-peak en señales de fluorescencia celular. El procedimiento incluyó selección de regiones de interés, extracción de intensidad media, normalización mediante $\Delta F/F_0$, detección de eventos pre-peak, construcción de una matriz de características y aplicación de UMAP y K-means. Los resultados mostraron patrones diferenciados de actividad basal y una correlación positiva entre la amplitud de los eventos pre-peak y la magnitud del peak principal. El enfoque se complementó con un dataset externo de señales GCaMP6m como validación exploratoria.
 \end{abstract}
 
-\section{Introduccion}
-Completar con contexto biologico y computacional.
+\textbf{Palabras clave:} fluorescencia celular, calcium imaging, GCaMP, actividad basal, pre-peak, Fiji, UMAP, K-means, inteligencia artificial.
 
-\section{Metodologia}
-Describir adquisicion de datos, normalizacion, extraccion de caracteristicas y clustering.
+\vspace{0.5cm}
+]
 
+% --------------------------------------------------
+\section{Introducción}
+% --------------------------------------------------
+
+El análisis de señales de fluorescencia celular permite estudiar cambios dinámicos asociados a procesos intracelulares, como variaciones en la concentración de calcio. Indicadores fluorescentes como GCaMP, GCaMP6 o jRGECO permiten registrar cambios de intensidad relacionados con la dinámica de Ca$^{2+}$ en células vivas, generando señales temporales que pueden ser analizadas a partir de regiones de interés o ROIs.
+
+En muchos análisis tradicionales, la atención se concentra principalmente en la respuesta de mayor amplitud o peak principal de la señal. Este enfoque permite estudiar eventos celulares evidentes, pero puede dejar en segundo plano la actividad que ocurre antes de dicha respuesta. En particular, la etapa basal suele utilizarse solo como referencia para normalizar la señal o calcular $F_0$, por lo que pequeñas fluctuaciones, microeventos o cambios progresivos previos al peak pueden quedar ocultos o ser considerados únicamente como ruido.
+
+Esta limitación es relevante, ya que la actividad basal/pre-peak podría contener información cuantificable sobre el estado previo de la célula o ROI antes de la respuesta principal. Analizar esta etapa permitiría complementar el estudio tradicional centrado en el peak, entregando una descripción más detallada del comportamiento temporal de la señal.
+
+Diversos trabajos han mostrado que la inteligencia artificial puede aportar al análisis de imágenes y señales de calcio, especialmente en tareas como detección de eventos, segmentación y clasificación \cite{yang2021,deepcinac2020}. En este contexto, el presente proyecto propone un flujo computacional basado en Fiji/ImageJ, Python e inteligencia artificial no supervisada para extraer, caracterizar y agrupar patrones de actividad basal/pre-peak en señales de fluorescencia celular.
+
+El objetivo principal del trabajo es evaluar si la etapa previa al peak principal contiene información cuantificable y si dicha información permite identificar patrones diferenciados entre ROIs. Para ello, se extrajeron señales temporales, se normalizaron mediante $\Delta F/F_0$, se detectaron eventos pre-peak y se construyó una matriz de características utilizada posteriormente en métodos de reducción de dimensionalidad y clustering no supervisado.
+% --------------------------------------------------
+\section{Descripción del problema}
+% --------------------------------------------------
+
+El problema abordado corresponde a la posible pérdida de información en la etapa basal de señales de fluorescencia celular. En un análisis convencional, la línea basal suele utilizarse principalmente como referencia para calcular la respuesta principal o peak máximo de la señal. Sin embargo, este enfoque puede ocultar fluctuaciones de baja amplitud, microeventos o patrones temporales previos al peak que podrían aportar información sobre el estado inicial de la célula o ROI.
+
+Esta limitación es relevante porque la actividad previa a la respuesta principal no necesariamente es homogénea entre todas las ROIs. Algunas regiones pueden presentar múltiples fluctuaciones pequeñas, otras eventos menos frecuentes pero de mayor amplitud, y otras una actividad basal más estable. Si esta información se promedia o se considera únicamente como ruido, se pierde la posibilidad de caracterizar diferencias funcionales preliminares entre señales.
+
+La pregunta central del proyecto fue:
+
+\begin{quote}
+\textit{¿La actividad basal o pre-peak contiene información cuantificable relacionada con la respuesta principal de la señal?}
+\end{quote}
+
+Para responder esta pregunta, el proyecto no buscó medir directamente potenciales de acción, sino analizar señales de fluorescencia asociadas a dinámica de calcio. Por lo tanto, el peak principal se interpretó como un aumento de fluorescencia relacionado con cambios de calcio intracelular, y no como una medición electrofisiológica directa. El foco del análisis estuvo en caracterizar la actividad previa a dicho peak mediante extracción de características e inteligencia artificial no supervisada.
+% --------------------------------------------------
+
+\section{Datos utilizados}
+% --------------------------------------------------
+
+Se trabajó con dos conjuntos de datos. El primero correspondió a registros propios de fluorescencia celular, asociados a indicadores como GCaMP, GCaMP6 y jRGECO. Estos datos fueron utilizados como análisis principal del proyecto, ya que a partir de ellos se realizó la extracción de ROIs, normalización de señales, detección de eventos pre-peak y construcción de la matriz de características para inteligencia artificial.
+
+El segundo conjunto correspondió a un dataset externo de señales GCaMP6m, utilizado como validación exploratoria. Este dataset contenía señales de calcio previamente procesadas, con ROIs ya extraídas. Debido a que su origen experimental, escala y preprocesamiento son distintos a los datos propios, no fue utilizado como comparación directa, sino como una forma de evaluar si el enfoque propuesto podía aplicarse también a otro conjunto de señales de calcio.
+
+\begin{table}[H]
+\centering
+\caption{Comparación general entre datos propios y dataset externo.}
+\begin{tabular}{p{3.2cm}p{3.2cm}}
+\toprule
+\textbf{Datos propios} & \textbf{Dataset externo} \\
+\midrule
+GCaMP, GCaMP6 y jRGECO & GCaMP6m \\
+ROIs extraídas en Fiji/ImageJ & ROIs ya preprocesadas \\
+Análisis principal & Validación exploratoria \\
+8 registros procesados inicialmente & Dataset público externo \\
+3266 frames aproximados & 31.047 señales/muestras externas \\
+83 ROIs finales para IA & Mayor volumen de muestras \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+En los datos propios se procesaron inicialmente 8 registros de fluorescencia, con un total aproximado de 3266 frames. Luego del control de calidad y la construcción de la matriz de características, el análisis final de inteligencia artificial se realizó sobre 83 ROIs. Cada ROI fue descrita mediante variables asociadas a la actividad basal/pre-peak, como número de eventos, duración, amplitud y variabilidad basal.
+
+En el dataset externo se trabajó con 31.047 señales o muestras asociadas a ROIs registradas en distintas condiciones y sesiones. Estas muestras fueron utilizadas para aplicar de forma exploratoria el mismo criterio general de extracción de características, agrupamiento y análisis de correlación.
+\section{Solución propuesta}
+% --------------------------------------------------
+
+La solución propuesta consistió en construir un pipeline computacional capaz de transformar imágenes y señales de fluorescencia celular en una matriz de características interpretables. Esta matriz permitió describir cuantitativamente la actividad basal/pre-peak de cada ROI y utilizar dicha información como entrada para métodos de inteligencia artificial no supervisada.
+
+La idea central fue no analizar únicamente el peak principal, sino caracterizar lo que ocurre antes de este. Para ello, cada señal fue procesada desde su etapa inicial de imagen o registro temporal hasta obtener variables numéricas relacionadas con frecuencia, duración, amplitud y variabilidad basal. De esta forma, la actividad pre-peak pudo ser comparada entre ROIs y posteriormente agrupada según patrones similares.
+
+El flujo general de la solución fue:
+
+\begin{enumerate}
+    \item selección de ROIs en Fiji/ImageJ;
+    \item extracción de intensidad media por frame;
+    \item normalización de señales mediante $\Delta F/F_0$;
+    \item detección del peak principal;
+    \item definición y análisis de la ventana pre-peak;
+    \item extracción de características cuantitativas;
+    \item construcción de una matriz de características por ROI;
+    \item reducción de dimensionalidad mediante UMAP;
+    \item agrupamiento mediante K-means;
+    \item análisis de correlación entre actividad basal/pre-peak y peak principal.
+\end{enumerate}
+
+El uso de IA no supervisada fue seleccionado debido a que no se contaba con etiquetas biológicas confirmadas para cada ROI. Por lo tanto, el objetivo no fue entrenar un modelo supervisado para clasificar categorías conocidas, sino explorar si las ROIs se organizaban naturalmente en patrones según sus características pre-peak.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{imagen_rois_fluorescencia_pseudocolor.png}
+    \caption{Ejemplo de imagen de fluorescencia con ROIs seleccionadas para extracción de señales temporales.}
+    \label{fig:rois}
+\end{figure}
+
+% --------------------------------------------------
+\section{Implementación}
+% --------------------------------------------------
+\subsection{Arquitectura general}
+
+La implementación fue organizada como una arquitectura modular por etapas. Cada módulo cumplió una función específica dentro del pipeline, desde la lectura de las señales hasta la generación de resultados finales. Esta organización permitió separar el procesamiento inicial de las señales, la extracción de características, el análisis con inteligencia artificial y la evaluación de resultados.
+
+El diseño modular fue relevante porque facilitó revisar cada etapa de forma independiente. Por ejemplo, los resultados de normalización podían inspeccionarse antes de detectar eventos pre-peak, y la matriz de características podía verificarse antes de aplicar UMAP y K-means. De esta forma, se redujo el riesgo de arrastrar errores desde el preprocesamiento hacia el análisis final.
+
+\begin{table}[H]
+\centering
+\caption{Módulos principales de la implementación.}
+\begin{tabular}{p{2.8cm}p{3.6cm}}
+\toprule
+\textbf{Módulo} & \textbf{Función principal} \\
+\midrule
+Preprocesamiento & Lectura de archivos, organización de señales y normalización mediante $\Delta F/F_0$ \\
+Extracción de características & Detección de eventos pre-peak y cálculo de duración, amplitud, frecuencia y variabilidad basal \\
+Control de calidad & Revisión y filtrado de ROIs con señales incompletas, ruidosas o no válidas \\
+Matriz de IA & Construcción del dataset final, donde cada fila representa una ROI y cada columna una característica \\
+Clustering & Aplicación de UMAP para visualización y K-means para agrupamiento no supervisado \\
+Evaluación & Generación de tablas, gráficos, curvas representativas y análisis de correlación \\
+Validación externa & Adaptación del pipeline a señales externas GCaMP6m para validación exploratoria \\
+\bottomrule
+\end{tabular}
+\end{table}
+En esta arquitectura, la unidad principal de análisis fue la ROI. Cada ROI fue transformada desde una señal temporal de fluorescencia en un vector de características cuantitativas. Estos vectores fueron posteriormente utilizados para identificar patrones de actividad basal/pre-peak mediante métodos no supervisados.
+
+\subsection{Decisiones de diseño}
+
+Una de las principales decisiones de diseño fue utilizar características interpretables en lugar de alimentar directamente imágenes completas a una red neuronal profunda. Esta decisión se tomó debido a que el objetivo del proyecto no era clasificar imágenes completas, sino caracterizar la actividad basal/pre-peak de cada ROI a partir de señales temporales de fluorescencia.
+
+El uso de características interpretables permitió relacionar los resultados del modelo con variables concretas, como número de eventos pre-peak, duración promedio, amplitud máxima, amplitud promedio y desviación estándar basal. De esta forma, cada cluster obtenido podía ser explicado en términos biológicos y no solo como una salida matemática del algoritmo.
+
+También se optó por aprendizaje no supervisado, debido a que no se contaba con etiquetas biológicas confirmadas para cada ROI. Es decir, no existía una clasificación previa validada que indicara si una ROI pertenecía a una categoría funcional específica. Por esta razón, un modelo supervisado o una red neuronal profunda no habría sido metodológicamente adecuado en esta etapa, ya que habría requerido etiquetas confiables para entrenamiento y evaluación.
+
+UMAP fue utilizado como método de reducción de dimensionalidad \cite{umap2018}, ya que permite proyectar datos con múltiples características en un espacio bidimensional, conservando relaciones de cercanía entre observaciones similares. En este proyecto, cada punto del UMAP representó una ROI descrita por sus características pre-peak.
+
+Posteriormente, se aplicó K-means para agrupar ROIs con comportamientos similares. Este método fue seleccionado por ser simple, interpretable y adecuado para una primera aproximación exploratoria. La interpretación de los clusters no se basó únicamente en la separación visual del UMAP, sino también en el análisis de las variables originales y en la revisión de curvas representativas.
+
+Finalmente, se incorporó un análisis de correlación entre las características basales/pre-peak y la magnitud del peak principal. Esta decisión permitió complementar el clustering con una pregunta cuantitativa adicional: evaluar si la actividad previa al peak se relacionaba con la respuesta principal de la señal.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=0.42cm,
+    every node/.style={font=\scriptsize},
+    proceso/.style={
+        rectangle,
+        rounded corners,
+        draw=black,
+        align=center,
+        minimum width=6.2cm,
+        minimum height=0.65cm,
+        fill=gray!10
+    },
+    ia/.style={
+        rectangle,
+        rounded corners,
+        draw=black,
+        align=center,
+        minimum width=6.2cm,
+        minimum height=0.65cm,
+        fill=blue!10
+    },
+    salida/.style={
+        rectangle,
+        rounded corners,
+        draw=black,
+        align=center,
+        minimum width=6.2cm,
+        minimum height=0.65cm,
+        fill=green!10
+    },
+    flecha/.style={
+        -{Latex[length=2mm]},
+        thick
+    }
+]
+
+\node[proceso] (img) {Imágenes/señales de fluorescencia};
+\node[proceso, below=of img] (rois) {Selección de ROIs en Fiji/ImageJ};
+\node[proceso, below=of rois] (intensidad) {Extracción de intensidad media por frame};
+\node[proceso, below=of intensidad] (norm) {Normalización de señales mediante $\Delta F/F_0$};
+\node[proceso, below=of norm] (peak) {Detección del peak principal};
+\node[proceso, below=of peak] (prepeak) {Análisis de ventana basal/pre-peak};
+\node[proceso, below=of prepeak] (features) {Extracción de características cuantitativas};
+\node[ia, below=of features] (umap) {Reducción de dimensionalidad mediante UMAP};
+\node[ia, below=of umap] (kmeans) {Agrupamiento no supervisado mediante K-means};
+\node[salida, below=of kmeans] (resultados) {Clusters, correlaciones y validación externa};
+
+\draw[flecha] (img) -- (rois);
+\draw[flecha] (rois) -- (intensidad);
+\draw[flecha] (intensidad) -- (norm);
+\draw[flecha] (norm) -- (peak);
+\draw[flecha] (peak) -- (prepeak);
+\draw[flecha] (prepeak) -- (features);
+\draw[flecha] (features) -- (umap);
+\draw[flecha] (umap) -- (kmeans);
+\draw[flecha] (kmeans) -- (resultados);
+
+\end{tikzpicture}
+\caption{Arquitectura general del pipeline implementado, desde la extracción de señales hasta el análisis no supervisado y la evaluación de resultados.}
+\label{fig:pipeline}
+\end{figure}
+% --------------------------------------------------
+\section{Metodología experimental}
+% --------------------------------------------------
+
+\subsection{Normalización de señales}
+
+Las señales extraídas desde cada ROI fueron normalizadas mediante $\Delta F/F_0$, con el objetivo de analizar cambios relativos de fluorescencia respecto a una línea basal inicial. Esta normalización permitió comparar ROIs con intensidades absolutas diferentes.
+
+\begin{equation}
+    \frac{\Delta F}{F_0} = \frac{F - F_0}{F_0}
+\end{equation}
+
+donde $F$ corresponde a la fluorescencia en cada frame y $F_0$ corresponde a la fluorescencia basal inicial. En este proyecto, $F_0$ fue estimado a partir de los frames iniciales de cada señal, utilizados como referencia basal.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{curvas_dF_F0_NMDA_control4.png}
+    \caption{Ejemplo de curvas normalizadas $\Delta F/F_0$ para distintas ROIs.}
+    \label{fig:dff}
+\end{figure}
+
+\subsection{Detección del peak principal y ventana pre-peak}
+
+Luego de normalizar las señales, se identificó el peak principal de cada ROI. Este peak fue utilizado como referencia temporal para definir una ventana previa de análisis, denominada ventana basal/pre-peak.
+
+El objetivo de esta etapa no fue estudiar únicamente la respuesta máxima, sino caracterizar la actividad que ocurre antes de ella. Para evitar seleccionar fluctuaciones iniciales, ruido o eventos de borde como peak principal, la detección se realizó considerando la forma general de la señal y el máximo relevante dentro de la curva normalizada.
+
+Una vez identificado el peak, se analizó la región previa a este punto. Dentro de esta ventana se detectaron eventos candidatos basados en la variabilidad basal de la señal. Estos eventos fueron posteriormente caracterizados mediante variables cuantitativas, como duración, amplitud y frecuencia.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{curvas_representativas_por_cluster.png}
+    \caption{Ejemplo de señales representativas utilizadas para visualizar el peak principal y la actividad previa a este.}
+    \label{fig:prepeak}
+\end{figure}
+
+\subsection{Extracción de características}
+
+Para cada ROI se detectaron eventos pre-peak y se calcularon variables asociadas a frecuencia, duración, amplitud y variabilidad basal. Estas variables permitieron transformar cada señal temporal en un vector de características cuantitativas.
+
+Cada fila de la matriz final representó una ROI, mientras que cada columna correspondió a una característica extraída desde la señal. Esta matriz fue utilizada como entrada para los métodos de inteligencia artificial no supervisada.
+
+\begin{table}[H]
+\centering
+\caption{Características extraídas por ROI.}
+\begin{tabular}{p{3.1cm}p{3.1cm}}
+\toprule
+\textbf{Variable} & \textbf{Interpretación} \\
+\midrule
+N eventos pre-peak & Cantidad de eventos previos al peak \\
+Duración promedio & Duración media de eventos pre-peak \\
+Amplitud promedio & Intensidad promedio de eventos pre-peak \\
+Amplitud máxima & Mayor fluctuación detectada antes del peak \\
+Std basal & Variabilidad de la señal basal \\
+Umbral & Criterio de detección de eventos \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{IA no supervisada}
+
+Antes de aplicar los métodos de inteligencia artificial, las características fueron escaladas para evitar que variables con mayor magnitud dominaran el análisis. Esto fue necesario porque las variables utilizadas tenían rangos diferentes, por ejemplo amplitud, duración y número de eventos.
+
+Se aplicó UMAP para reducir la dimensionalidad de la matriz de características y visualizar la distribución de las ROIs en dos dimensiones. En esta proyección, cada punto representó una ROI descrita por sus características pre-peak.
+
+Posteriormente, se utilizó K-means con $K=3$ para agrupar las ROIs en patrones funcionales preliminares. La elección de tres clusters se basó en la interpretabilidad de los grupos obtenidos y en su coherencia con las variables extraídas y las curvas representativas.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{umap_clustering_datos_propios.png}
+    \caption{Proyección UMAP de datos propios y agrupamiento mediante K-means. Cada punto representa una ROI.}
+    \label{fig:umap}
+\end{figure}
+
+\subsection{Métricas y criterios de evaluación}
+
+Al tratarse de un análisis no supervisado, no se utilizaron métricas de clasificación como accuracy, sensibilidad o especificidad, ya que no existían etiquetas biológicas confirmadas para cada ROI. En su lugar, se utilizaron métricas y criterios exploratorios orientados a evaluar la coherencia de los patrones obtenidos.
+
+Los criterios utilizados fueron:
+
+\begin{itemize}
+    \item distribución de ROIs por cluster;
+    \item comparación de variables promedio entre clusters;
+    \item análisis visual de curvas representativas;
+    \item correlación de Pearson y Spearman entre variables pre-peak y peak principal;
+    \item comparación exploratoria con un dataset externo.
+\end{itemize}
+
+La correlación de Pearson fue utilizada para evaluar relaciones lineales entre variables, mientras que la correlación de Spearman permitió analizar relaciones monotónicas, siendo menos sensible a valores extremos y a relaciones no estrictamente lineales. Por esta razón, la interpretación principal de la asociación entre actividad pre-peak y peak principal se basó principalmente en Spearman.
+
+En el caso del dataset externo, se aplicó el mismo criterio general de análisis: extracción de variables relacionadas con actividad basal/pre-peak, clustering exploratorio y análisis de correlación con el peak principal. Este análisis se utilizó como validación exploratoria y no como comparación directa, debido a diferencias en origen experimental, escala y preprocesamiento.
+% --------------------------------------------------
 \section{Resultados}
-Incluir figuras y tablas finales desde las carpetas de resultados.
+% --------------------------------------------------
 
+\subsection{Clusters obtenidos en datos propios}
+
+El análisis no supervisado se aplicó sobre la matriz final de características, compuesta por 83 ROIs provenientes de los registros propios procesados. Cada ROI fue descrita mediante variables asociadas a la actividad basal/pre-peak, tales como número de eventos, duración promedio, amplitud promedio, amplitud máxima y variabilidad basal.
+
+A partir de la proyección UMAP y el agrupamiento mediante K-means, descritos previamente en la metodología, se identificaron tres clusters principales. La interpretación de estos grupos se realizó considerando las variables originales extraídas desde las señales y la revisión visual de curvas representativas.
+
+\begin{table}[H]
+\centering
+\caption{Interpretación de clusters obtenidos en datos propios.}
+\begin{tabular}{p{1.2cm}p{1cm}p{4cm}}
+\toprule
+\textbf{Cluster} & \textbf{ROIs} & \textbf{Interpretación} \\
+\midrule
+0 & 13 & Actividad frecuente y sostenida de baja amplitud \\
+1 & 13 & Eventos menos frecuentes, pero de mayor amplitud \\
+2 & 57 & Actividad leve/moderada predominante \\
+\bottomrule
+\end{tabular}
+\label{tab:clusters_interpretacion}
+\end{table}
+
+Para complementar la interpretación de los clusters, se compararon las principales variables promedio de cada grupo. Esta comparación permitió relacionar cada cluster con un patrón funcional preliminar de actividad basal/pre-peak.
+
+\begin{table}[H]
+\centering
+\caption{Resumen cuantitativo de características por cluster en datos propios.}
+\resizebox{\linewidth}{!}{
+\begin{tabular}{cccccc}
+\toprule
+\textbf{Cluster} & \textbf{ROIs} & \textbf{Eventos prom.} & \textbf{Duración prom.} & \textbf{Amp. prom.} & \textbf{Amp. máx.} \\
+\midrule
+0 & 13 & 6.00 & 15.50 & 0.005 & 0.029 \\
+1 & 13 & 1.15 & 4.35 & 0.536 & 0.934 \\
+2 & 57 & 1.14 & 2.51 & 0.046 & 0.376 \\
+\bottomrule
+\end{tabular}
+}
+\label{tab:resumen_clusters}
+\end{table}
+
+El Cluster 0 presentó el mayor número promedio de eventos pre-peak y la mayor duración promedio, pero con amplitudes bajas. Esto sugiere un patrón de actividad frecuente y sostenida, aunque de baja intensidad. El Cluster 1 presentó menor cantidad de eventos, pero con amplitudes considerablemente mayores, por lo que fue interpretado como un grupo de eventos menos frecuentes pero más intensos. Finalmente, el Cluster 2 fue el grupo más numeroso y presentó valores bajos o moderados de actividad, representando un patrón basal leve/moderado predominante.
+
+Estos resultados indican que la actividad basal/pre-peak no fue homogénea entre las ROIs, sino que pudo organizarse en patrones diferenciados mediante aprendizaje no supervisado.
+
+% --------------------------------------------------
+
+\subsection{Curvas representativas por cluster}
+
+Las curvas representativas permitieron validar visualmente las diferencias entre los clusters obtenidos. Esta revisión fue importante porque permitió comprobar que los grupos no correspondían únicamente a una separación matemática, sino que también reflejaban diferencias observables en la dinámica temporal de las señales.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{curvas_representativas_por_cluster.png}
+    \caption{Curvas representativas $\Delta F/F_0$ para cada cluster identificado en los datos propios. La línea vertical indica el peak principal y la región previa corresponde a la ventana basal/pre-peak analizada.}
+    \label{fig:curvas_cluster}
+\end{figure}
+
+En las curvas representativas se observó que el Cluster 0 presentó fluctuaciones pre-peak más frecuentes y sostenidas, aunque de baja amplitud. El Cluster 1 mostró eventos menos frecuentes, pero de mayor intensidad. Por su parte, el Cluster 2 presentó una actividad pre-peak más leve o moderada, coherente con su mayor representación dentro del conjunto de ROIs.
+
+% --------------------------------------------------
+
+\subsection{Relación entre actividad basal y peak principal}
+
+Además del análisis por clusters, se evaluó si las características de la actividad basal/pre-peak se relacionaban con la magnitud del peak principal. Para ello, se calcularon correlaciones de Pearson y Spearman entre el peak principal y distintas variables extraídas desde la ventana pre-peak.
+
+\begin{table}[H]
+\centering
+\caption{Correlación entre variables pre-peak y peak principal en datos propios.}
+\resizebox{\linewidth}{!}{
+\begin{tabular}{lcc}
+\toprule
+\textbf{Variable basal/pre-peak} & \textbf{Pearson} & \textbf{Spearman} \\
+\midrule
+Amplitud máxima eventos & 0.989 & 0.918 \\
+Amplitud promedio eventos & 0.983 & 0.910 \\
+Std basal & 0.714 & 0.729 \\
+Umbral & 0.666 & 0.716 \\
+Duración promedio eventos & -0.025 & 0.618 \\
+N eventos pre-peak & 0.248 & 0.575 \\
+\bottomrule
+\end{tabular}
+}
+\label{tab:correlacion_propios}
+\end{table}
+
+Los resultados mostraron una correlación positiva fuerte entre la magnitud del peak principal y la amplitud máxima de los eventos pre-peak, con un valor de Spearman de 0.918. También se observó una correlación fuerte con la amplitud promedio de los eventos pre-peak, con un valor de Spearman de 0.910.
+
+En cambio, el número de eventos pre-peak presentó una correlación más moderada. Esto sugiere que la magnitud del peak principal se relacionó más estrechamente con la intensidad de la actividad pre-peak que con la cantidad de eventos detectados.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{relacion_eventos_prepeak_vs_peak_propios.png}
+        \caption{Relación entre número de eventos pre-peak y peak principal en datos propios. La asociación observada fue moderada, lo que indica que la cantidad de eventos por sí sola no explica completamente la magnitud del peak.}
+    \label{fig:eventos_vs_peak_propios}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{relacion_amplitud_prepeak_vs_peak_propios.png}
+    \caption{Relación entre amplitud máxima pre-peak y peak principal en datos propios. Se observa una asociación positiva fuerte entre ambas variables.}
+    \label{fig:amplitud_vs_peak_propios}
+\end{figure}
+
+Los resultados indican que la actividad basal/pre-peak contiene información cuantitativa relacionada con la respuesta principal de la señal. Sin embargo, la relación no fue igual para todas las variables. El número de eventos pre-peak mostró una asociación moderada con el peak principal, mientras que la amplitud máxima pre-peak presentó una relación mucho más fuerte y visualmente más clara.
+
+Esto sugiere que la magnitud del peak principal se relacionó más estrechamente con la intensidad de la actividad pre-peak que con la cantidad de eventos detectados. No obstante, esta relación se interpreta como una asociación exploratoria y no como causalidad, debido a que ambas variables provienen de la misma señal de fluorescencia.
+
+% --------------------------------------------------
+
+\subsection{Validación exploratoria con dataset externo}
+
+El pipeline también fue aplicado de forma exploratoria a un dataset externo de señales GCaMP6m. Este análisis no tuvo como objetivo comparar directamente las magnitudes entre datasets, ya que el origen experimental, la escala y el preprocesamiento de las señales fueron diferentes. En cambio, se buscó evaluar si la lógica general del análisis podía revelar tendencias similares en otro conjunto de señales de calcio.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{validacion_externa_umap_composicion.png}
+    \caption{Análisis exploratorio del dataset externo mediante UMAP y composición por condición. Los clusters obtenidos no estuvieron formados exclusivamente por una única condición experimental.}
+    \label{fig:externo}
+\end{figure}
+
+En el dataset externo también se identificaron agrupamientos diferenciados. La composición por condición mostró que los clusters mezclaban distintas condiciones experimentales, lo que sugiere que la separación no dependió únicamente de la etiqueta experimental, sino también de patrones propios de las señales.
+
+Además, se repitió el análisis de correlación entre características basales/pre-peak y peak principal. Los resultados mostraron una tendencia similar a la observada en los datos propios.
+
+\begin{table}[H]
+\centering
+\caption{Correlación entre variables pre-peak y peak principal en dataset externo.}
+\resizebox{\linewidth}{!}{
+\begin{tabular}{lccc}
+\toprule
+\textbf{Variable basal/pre-peak} & \textbf{Pearson} & \textbf{Spearman} & \textbf{Fuerza} \\
+\midrule
+Max event amplitude & 0.999 & 0.987 & Fuerte \\
+Std signal & 0.977 & 0.924 & Fuerte \\
+Mean event amplitude & 0.781 & 0.914 & Fuerte \\
+Mean event duration & 0.031 & 0.601 & Moderada \\
+Threshold & 0.121 & 0.529 & Moderada \\
+N events & 0.016 & 0.418 & Moderada/baja \\
+\bottomrule
+\end{tabular}
+}
+\label{tab:correlacion_externo}
+\end{table}
+
+Al igual que en los datos propios, la amplitud de los eventos pre-peak presentó la asociación más fuerte con el peak principal. En cambio, el número de eventos mostró una relación más moderada. Esta coincidencia entre ambos conjuntos de datos respalda de forma exploratoria la idea de que la intensidad de la actividad basal/pre-peak puede ser más informativa que la cantidad de eventos detectados.
+
+No obstante, debido a las diferencias entre los datos propios y el dataset externo, estos resultados deben interpretarse como una validación exploratoria del enfoque propuesto y no como una confirmación biológica directa.
+% --------------------------------------------------
+\section{Análisis crítico y comparación con otros métodos}
+% --------------------------------------------------
+
+El enfoque implementado permitió analizar la actividad basal/pre-peak de manera interpretable y sin requerir etiquetas biológicas previas. Esto fue adecuado para el contexto del proyecto, ya que no se contaba con clases confirmadas para cada ROI, como tipo celular, condición funcional validada o respuesta biológica etiquetada. Por esta razón, el uso de aprendizaje no supervisado permitió explorar patrones en los datos sin imponer categorías externas.
+
+Una ventaja importante del enfoque utilizado fue su interpretabilidad. Al trabajar con características extraídas desde las señales, como número de eventos, duración, amplitud y variabilidad basal, fue posible relacionar cada cluster con un comportamiento cuantitativo específico. Esto permitió interpretar los resultados más allá de una simple separación matemática.
+
+En comparación con un modelo supervisado, UMAP y K-means tienen la ventaja de no requerir etiquetas previas. Sin embargo, su interpretación es exploratoria y no permite afirmar categorías biológicas definitivas. Los clusters obtenidos deben entenderse como patrones funcionales preliminares de actividad basal/pre-peak y no como tipos celulares confirmados.
+
+En comparación con redes neuronales profundas, el enfoque utilizado es más simple y explicable. Una red neuronal podría aprender representaciones más complejas directamente desde las señales o imágenes, pero requeriría una mayor cantidad de datos, etiquetas confiables o una estrategia de entrenamiento no supervisado más avanzada, como autoencoders. En el presente proyecto, el tamaño limitado del dataset propio y la ausencia de etiquetas hicieron más adecuado un enfoque basado en características interpretables.
+
+También se podrían haber utilizado métodos como Monte Carlo o bootstrap para evaluar la robustez de los clusters frente a ruido o remuestreo de los datos. Sin embargo, estos métodos no responden directamente al objetivo principal de descubrir patrones en las ROIs reales, sino que serían más adecuados como análisis complementario para estudiar incertidumbre o estabilidad de los resultados.
+
+Por otra parte, herramientas especializadas como CaImAn o Suite2p podrían automatizar etapas como segmentación, corrección de movimiento y extracción de señales \cite{caiman2019,suite2p2020}. En este proyecto no fueron utilizadas como método principal porque el foco fue construir un pipeline propio, interpretable y centrado específicamente en la actividad basal/pre-peak. No obstante, estas herramientas representan una extensión relevante para trabajos futuros.
+
+\begin{table}[H]
+\centering
+\caption{Comparación entre el enfoque implementado y otros métodos posibles.}
+\resizebox{\linewidth}{!}{
+\begin{tabular}{p{2.7cm}p{3.4cm}p{3.7cm}}
+\toprule
+\textbf{Método} & \textbf{Ventaja principal} & \textbf{Limitación en este proyecto} \\
+\midrule
+UMAP + K-means & No requiere etiquetas y permite descubrir patrones exploratorios & Los clusters no representan categorías biológicas definitivas \\
+Modelos supervisados & Permiten clasificar o predecir clases conocidas & Requieren etiquetas confiables para entrenamiento y evaluación \\
+Redes neuronales profundas & Pueden aprender representaciones complejas desde señales o imágenes & Requieren más datos, mayor validación y menor interpretabilidad \\
+Autoencoders & Permiten aprender representaciones no supervisadas de señales & Requieren mayor desarrollo técnico y validación adicional \\
+Monte Carlo / Bootstrap & Evalúan robustez e incertidumbre de los resultados & No descubren directamente patrones en las ROIs reales \\
+CaImAn / Suite2p & Automatizan segmentación, corrección y extracción de señales & Requieren configuración específica y no eran el foco principal del proyecto \\
+\bottomrule
+\end{tabular}
+}
+\label{tab:comparacion_metodos}
+\end{table}
+
+En síntesis, el enfoque utilizado fue adecuado para una primera investigación exploratoria, ya que permitió transformar señales de fluorescencia en variables interpretables, agrupar ROIs según su actividad basal/pre-peak y evaluar la relación entre esta actividad y el peak principal. Sin embargo, para avanzar hacia conclusiones biológicas más robustas sería necesario aumentar el número de datos, automatizar etapas del procesamiento y validar los patrones obtenidos con información experimental adicional.
+% --------------------------------------------------
+\section{Limitaciones}
+% --------------------------------------------------
+
+Las principales limitaciones del proyecto se relacionan con el tamaño del dataset, el tipo de señal analizada, el procesamiento de las ROIs y el alcance exploratorio de los resultados.
+
+\begin{itemize}
+    \item \textbf{Número limitado de registros propios:} aunque se procesaron múltiples señales de fluorescencia, el número de archivos propios fue reducido. Esto limita la generalización de los resultados y hace que las conclusiones deban interpretarse como exploratorias.
+
+    \item \textbf{Selección manual de ROIs:} las regiones de interés fueron seleccionadas manualmente en Fiji/ImageJ. Esto permitió controlar visualmente las zonas analizadas, pero también puede introducir sesgo del observador. En trabajos futuros sería recomendable utilizar métodos automáticos o semiautomáticos de segmentación.
+
+    \item \textbf{Ausencia de etiquetas biológicas confirmadas:} no se contaba con etiquetas validadas para cada ROI, como tipo celular, estado funcional o respuesta experimental confirmada. Por esta razón, no fue posible entrenar un modelo supervisado y los clusters obtenidos deben interpretarse como patrones funcionales preliminares.
+
+    \item \textbf{Fluorescencia de calcio y no medición directa de potenciales de acción:} el análisis se basó en señales de fluorescencia asociadas a dinámica de Ca$^{2+}$. Por lo tanto, el peak principal no corresponde a una medición electrofisiológica directa del potencial de acción, sino a una respuesta de fluorescencia relacionada con cambios intracelulares de calcio.
+
+    \item \textbf{Relación correlacional, no causal:} la asociación encontrada entre actividad basal/pre-peak y peak principal no permite establecer causalidad. Es decir, no se puede afirmar que los eventos pre-peak causen el peak principal, sino que existe una relación cuantitativa entre ambas variables.
+
+    \item \textbf{Posible influencia de artefactos:} las señales pueden verse afectadas por ruido, drift, fotoblanqueamiento, variaciones de iluminación o movimiento. Estos factores pueden influir en la detección de eventos pre-peak y en la estimación de amplitudes.
+
+    \item \textbf{Dataset externo no equivalente:} el dataset externo utilizado para validación exploratoria tiene un origen experimental, escala y preprocesamiento distintos a los datos propios. Por ello, sus resultados no deben interpretarse como una confirmación directa, sino como una evaluación complementaria de la aplicabilidad del pipeline.
+\end{itemize}
+
+En conjunto, estas limitaciones indican que el proyecto debe entenderse como una primera aproximación exploratoria al análisis de actividad basal/pre-peak mediante inteligencia artificial. Aun así, los resultados obtenidos permiten justificar que esta etapa contiene información cuantificable y que puede ser estudiada con herramientas computacionales.
+
+% --------------------------------------------------
 \section{Conclusiones}
-Agregar hallazgos, limitaciones y trabajo futuro.
+% --------------------------------------------------
 
-\bibliographystyle{plain}
+El proyecto permitió desarrollar un flujo computacional completo para analizar señales de fluorescencia celular, desde la selección de ROIs y extracción de intensidad temporal hasta la identificación de patrones mediante inteligencia artificial no supervisada. Este pipeline integró herramientas de procesamiento de imágenes, normalización de señales, extracción de características, clustering y análisis de correlación.
+
+Los resultados obtenidos muestran que la actividad basal/pre-peak no debe considerarse únicamente como ruido o como una simple línea de referencia. Al contrario, esta etapa presentó diferencias cuantificables entre ROIs, relacionadas con el número de eventos, duración, amplitud y variabilidad basal. Mediante UMAP y K-means fue posible identificar tres patrones principales: actividad frecuente y sostenida de baja amplitud, eventos menos frecuentes pero de mayor amplitud, y actividad leve/moderada predominante.
+
+Además, el análisis de correlación mostró que la magnitud del peak principal se relacionó principalmente con la amplitud de los eventos pre-peak. Esta asociación fue más fuerte para la amplitud máxima y la amplitud promedio que para el número de eventos, lo que sugiere que la intensidad de la actividad previa al peak puede ser más informativa que la cantidad de eventos detectados.
+
+El análisis con el dataset externo apoyó de forma exploratoria esta tendencia, ya que también se observó una asociación fuerte entre amplitud pre-peak y peak principal. Sin embargo, debido a las diferencias de origen experimental, escala y preprocesamiento, este dataset fue interpretado como validación exploratoria y no como una confirmación directa de los resultados obtenidos en los datos propios.
+
+En síntesis, el trabajo demuestra que la etapa basal/pre-peak contiene información cuantificable y potencialmente relevante para caracterizar la respuesta posterior de señales de fluorescencia celular. No obstante, los resultados deben entenderse como exploratorios, ya que no permiten establecer causalidad ni definir categorías biológicas definitivas sin validación experimental adicional.
+
+% --------------------------------------------------
+\section{Trabajo futuro}
+% --------------------------------------------------
+
+Como trabajo futuro, una primera extensión sería aumentar el número de registros de fluorescencia y ROIs analizadas. Esto permitiría evaluar si los patrones observados se mantienen en un conjunto de datos más amplio y mejorar la robustez estadística de los resultados.
+
+También sería recomendable automatizar o semiautomatizar la segmentación de ROIs mediante herramientas especializadas como CaImAn o Suite2p. Esto permitiría reducir el sesgo asociado a la selección manual de regiones de interés y estandarizar el proceso de extracción de señales.
+
+Otra mejora importante sería incorporar etapas de corrección de movimiento, corrección de drift y fotoblanqueamiento. Estos factores pueden afectar la forma de las señales de fluorescencia y, por lo tanto, influir en la detección de eventos pre-peak y en la estimación de sus amplitudes.
+
+Además, sería relevante validar los clusters obtenidos con información biológica adicional. Por ejemplo, podrían incorporarse marcadores celulares, condiciones experimentales conocidas o ensayos complementarios que permitan determinar si los patrones identificados corresponden a diferencias funcionales reales entre células o regiones.
+
+Desde el punto de vista de inteligencia artificial, se podría explorar el uso de modelos más avanzados, como redes neuronales, autoencoders o modelos informados por física. Los autoencoders podrían ser útiles para aprender representaciones de las señales sin necesidad de etiquetas, mientras que una red neuronal supervisada podría aplicarse si en el futuro se dispone de clases biológicas confiables. Asimismo, modelos informados por física podrían utilizarse para incorporar ecuaciones o restricciones relacionadas con la dinámica de calcio intracelular.
+
+Finalmente, sería útil aplicar métodos de robustez, como bootstrap o simulaciones Monte Carlo, para evaluar la estabilidad de los clusters frente a variaciones en los datos, ruido o selección de ROIs. Esto permitiría cuantificar con mayor precisión qué tan consistentes son los patrones detectados por el pipeline.
+
+% --------------------------------------------------
+\bibliographystyle{IEEEtran}
 \bibliography{referencias}
 
 \end{document}

@@ -1,0 +1,35 @@
+# Archivos temporales de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Entornos virtuales
+venv/
+.env/
+.venv/
+
+# Archivos temporales de Jupyter
+.ipynb_checkpoints/
+
+# Datos pesados
+data/raw/*
+data/external/*
+data/processed/*
+
+# Mantener README dentro de data
+!data/README.md
+
+# Archivos temporales de LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

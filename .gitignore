@@ -15,6 +15,10 @@ venv/
 data/raw/*
 data/external/*
 
+# Permitir insumos pequeños y trazables dentro de data/raw
+!data/raw/interno/
+!data/raw/interno/**
+
 # Mantener README dentro de data
 !data/README.md
 

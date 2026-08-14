@@ -12,13 +12,13 @@ data/raw/
 
 Estos archivos corresponden a senales de fluorescencia celular asociadas a indicadores como GCaMP, GCaMP6 y jRGECO.
 
-En esta version del proyecto, el material de trabajo interno quedo organizado localmente en:
+En esta version del proyecto, el material de trabajo interno y los archivos fuente pequenos se organizan en:
 
 ```text
 data/raw/interno/
 ```
 
-Esto incluye CSV exportados desde Fiji/ImageJ y carpetas de resultados intermedios asociadas a cada adquisicion.
+Eso incluye CSV y ODS exportados desde Fiji/ImageJ, asi como archivos de entrada usados para generar las tablas y figuras del analisis interno.
 
 ## Dataset externo
 

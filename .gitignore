@@ -37,6 +37,9 @@ data/external/*
 # Archivos temporales de Office
 ~$*
 
+# Resultados externos demasiado pesados para GitHub
+results/tables/externo/external_roi_day_features.csv
+
 # Sistema operativo
 .DS_Store
 Thumbs.db

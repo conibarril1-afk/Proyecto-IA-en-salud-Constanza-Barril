@@ -120,6 +120,12 @@ Para reproducir el analisis principal, ejecutar el notebook:
 notebooks/analisis_principal.ipynb
 ```
 
+El analisis complementario del dataset externo se encuentra en:
+
+```text
+notebooks/data_externo.ipynb
+```
+
 Tambien se pueden ejecutar los modulos desde `src/` segun la etapa del pipeline:
 
 ```bash
@@ -135,6 +141,13 @@ El analisis del dataset externo se encuentra en:
 python src/external_dataset_analysis.py
 ```
 
+Ademas, el repositorio incluye scripts auxiliares usados durante el analisis:
+
+```text
+src/patch_notebook.py
+src/umap_exploratorio.py
+```
+
 ## Resultados
 
 Los resultados generados se almacenan en:
@@ -142,6 +155,15 @@ Los resultados generados se almacenan en:
 ```text
 results/figures/
 results/tables/
+```
+
+Dentro del repositorio quedaron organizados en subcarpetas:
+
+```text
+results/figures/interno/
+results/figures/externo/
+results/tables/interno/
+results/tables/externo/
 ```
 
 Entre los principales resultados se incluyen:
@@ -179,6 +201,12 @@ Ademas, se observo una correlacion positiva fuerte entre la amplitud de los even
 ## Limitaciones
 
 El proyecto presenta limitaciones asociadas al numero reducido de registros propios, seleccion manual de ROIs, ausencia de etiquetas biologicas confirmadas y diferencias entre los datos propios y el dataset externo.
+
+## Contenido incorporado al repositorio
+
+Se incorporaron al repositorio los notebooks de analisis, scripts auxiliares, tablas limpias de caracteristicas, resuenes de clusters, archivos de control de calidad, salidas del analisis externo y figuras ligeras de UMAP y visualizacion.
+
+Los directorios con archivos grandes o datasets completos quedaron organizados localmente en `data/raw/` y `data/external/`, pero no se versionan por tamano.
 
 ## Trabajo futuro
 

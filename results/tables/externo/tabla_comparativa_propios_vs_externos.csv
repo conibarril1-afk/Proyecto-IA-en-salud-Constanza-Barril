@@ -1,0 +1,5 @@
+Análisis,Datos propios,Datos externos
+Unidad de análisis,ROI,ROI-día
+Indicador,GCaMP/jRGECO/GCaMP6,GCaMP6m
+Método IA,ΔF/F0 + eventos pre-peak; UMAP + K-means,Características ROI-día; UMAP + K-means
+Resultado,3 patrones pre-peak,3 patrones pre-peak (externo)

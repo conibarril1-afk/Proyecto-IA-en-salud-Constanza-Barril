@@ -3,6 +3,8 @@ pandas
 matplotlib
 scikit-learn
 umap-learn
+h5py
+tqdm
 openpyxl
 scipy
 jupyter

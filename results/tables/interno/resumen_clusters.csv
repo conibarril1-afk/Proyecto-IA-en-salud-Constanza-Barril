@@ -1,0 +1,4 @@
+Cluster,Media_basal,Std_basal,Umbral,N_eventos_pre_peak,Duracion_promedio_eventos,Amplitud_promedio_eventos,Amplitud_maxima_eventos,n_rois,event_score,amplitude_score,Interpretacion
+0,0.0,0.000518,0.000932,6.0,15.49768,0.005073,0.01625,13,21.497680000000003,0.021323,eventos frecuentes y sostenidos
+1,-2.1e-05,0.007935,0.014261,1.153846,4.346154,0.536189,0.547556,13,5.5,1.083745,alta amplitud / posible señal extrema o artefacto
+2,0.001343,0.001843,0.003621,1.140351,2.506433,0.046234,0.057685,57,3.646784,0.103919,actividad moderada / señal más estable

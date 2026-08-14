@@ -1,0 +1,4 @@
+Cluster,mean_signal,std_signal,min_signal,max_signal,baseline_center,threshold,n_events,mean_event_duration,max_event_duration,mean_event_amplitude,max_event_amplitude,auc_above_baseline,peak_value,global_slope,n_samples,event_score,amplitude_score,stability_score,Interpretacion
+0,0.1711,0.089,-0.0303,0.6783,0.1709,0.3515,3.587,6.8546,10.9241,0.3534,0.5769,36.0711,0.6783,-0.0,22967,10.4416,0.9302999999999999,11.235954929933092,actividad moderada / señal más estable
+1,0.2254,0.2669,-0.6688,2.1697,0.1527,0.3585,17.7368,12.1256,35.4686,0.65,2.0139,170.6308,2.1697,0.0,6531,29.8624,2.6639,3.7467216045458156,eventos frecuentes y sostenidos
+2,0.7105,1.0955,-1.7569,10.8634,0.7238,1.7258,4.0755,8.5536,15.1145,3.4153,14.5149,246.5461,10.8634,-0.0005,1642,12.6291,17.9302,0.9128251931421039,alta amplitud / posible señal extrema
